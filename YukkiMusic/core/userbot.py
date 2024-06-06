@@ -21,49 +21,64 @@ assistantids = []
 
 class Userbot(Client):
     def __init__(self):
-        self.one = Client(
-            "YukkiString1",
-            api_id=config.API_ID,
-            api_hash=config.API_HASH,
-            session_string=str(config.STRING1),
-            workdir="datafiles",
-            no_updates=True,
+        self.one = (
+            Client(
+                "YukkiString1",
+                api_id=config.API_ID,
+                api_hash=config.API_HASH,
+                session_string=str(config.STRING1),
+                workdir="datafiles",
+            )
+            if config.STRING1
+            else None
         )
 
-        self.two = Client(
-            "YukkiString2",
-            api_id=config.API_ID,
-            api_hash=config.API_HASH,
-            session_string=str(config.STRING2),
-            workdir="datafiles",
-            no_updates=True,
+        self.two = (
+            Client(
+                "YukkiString2",
+                api_id=config.API_ID,
+                api_hash=config.API_HASH,
+                session_string=str(config.STRING2),
+                workdir="datafiles",
+            )
+            if config.STRING2
+            else None
         )
 
-        self.three = Client(
-            "YukkiString3",
-            api_id=config.API_ID,
-            api_hash=config.API_HASH,
-            session_string=str(config.STRING3),
-            workdir="datafiles",
-            no_updates=True,
+        self.three = (
+            Client(
+                "YukkiString3",
+                api_id=config.API_ID,
+                api_hash=config.API_HASH,
+                session_string=str(config.STRING3),
+                workdir="datafiles",
+            )
+            if config.STRING3
+            else None
         )
 
-        self.four = Client(
-            "YukkiString4",
-            api_id=config.API_ID,
-            api_hash=config.API_HASH,
-            session_string=str(config.STRING4),
-            workdir="datafiles",
-            no_updates=True,
+        self.four = (
+            Client(
+                "YukkiString4",
+                api_id=config.API_ID,
+                api_hash=config.API_HASH,
+                session_string=str(config.STRING4),
+                workdir="datafiles",
+            )
+            if config.STRING4
+            else None
         )
 
-        self.five = Client(
-            "YukkiString5",
-            api_id=config.API_ID,
-            api_hash=config.API_HASH,
-            session_string=str(config.STRING5),
-            workdir="datafiles",
-            no_updates=True,
+        self.five = (
+            Client(
+                "YukkiString5",
+                api_id=config.API_ID,
+                api_hash=config.API_HASH,
+                session_string=str(config.STRING5),
+                workdir="datafiles",
+            )
+            if config.STRING5
+            else None
         )
 
     async def start(self):
