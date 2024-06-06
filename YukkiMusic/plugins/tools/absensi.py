@@ -5,6 +5,8 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pymongo import MongoClient
 from config import MONGO_DB_URI
 
+from YukkiMusic import app
+
 client = MongoClient(MONGO_DB_URI)
 db = client.attendance_db
 
