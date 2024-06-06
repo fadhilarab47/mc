@@ -3,9 +3,7 @@ from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from pymongo import MongoClient
-from YukkiMusic import app
 from config import MONGO_DB_URI
-
 
 client = MongoClient(MONGO_DB_URI)
 db = client.attendance_db
@@ -13,7 +11,7 @@ db = client.attendance_db
 def get_today():
     return datetime.now().strftime("%Y-%m-%d")
 
-
+app = Client("attendance_bot")  # Pastikan Anda menginisialisasi client dengan benar
 
 @app.on_message(filters.command("absensi") & filters.group)
 async def absensi(client, message):
@@ -37,7 +35,7 @@ async def hadir_callback(client, callback_query):
     attendance_record = db.attendance.find_one({"chat_id": chat_id, "date": today, "user_id": user_id})
     
     if attendance_record:
-        await callback_query.answer("Anda sudah tercatat hadir.")
+        await callback_query.answer("Anda sudah tercatat hadir.", show_alert=True)
     else:
         db.attendance.insert_one({
             "chat_id": chat_id,
@@ -45,7 +43,7 @@ async def hadir_callback(client, callback_query):
             "user_name": user_name,
             "date": today
         })
-        await callback_query.answer(f"Terima kasih {user_name}, Anda telah tercatat hadir.")
+        await callback_query.answer(f"Terima kasih {user_name}, Anda telah tercatat hadir.", show_alert=True)
         await client.send_message(chat_id, f"{user_name} telah hadir.")
 
 @app.on_message(filters.command("rekap") & filters.group)
@@ -90,3 +88,6 @@ async def clear(client, message):
     
     db.attendance.delete_many({"chat_id": chat_id})
     await message.reply("Data absensi telah dihapus.")
+
+if __name__ == "__main__":
+    app.run()
