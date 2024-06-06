@@ -11,7 +11,6 @@ db = client.attendance_db
 def get_today():
     return datetime.now().strftime("%Y-%m-%d")
 
-app = Client("attendance_bot")  # Pastikan Anda menginisialisasi client dengan benar
 
 @app.on_message(filters.command("absensi") & filters.group)
 async def absensi(client, message):
@@ -89,5 +88,3 @@ async def clear(client, message):
     db.attendance.delete_many({"chat_id": chat_id})
     await message.reply("Data absensi telah dihapus.")
 
-if __name__ == "__main__":
-    app.run()
