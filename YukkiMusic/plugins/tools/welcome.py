@@ -1,221 +1,213 @@
-from re import findall
-
-from pyrogram import filters
-from pyrogram.enums import ChatMemberStatus as CMS
-from pyrogram.errors.exceptions.bad_request_400 import ChatAdminRequired
-from pyrogram.types import (
-    Chat,
-    ChatMemberUpdated,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
-
 from YukkiMusic import app
-from YukkiMusic.misc import SUDOERS
-from YukkiMusic.plugins.admins.notes import extract_urls
-from YukkiMusic.utils.database import (
-    del_welcome,
-    get_welcome,
-    is_gbanned_user,
-    set_welcome,
+from logging import getLogger
+import os
+from typing import Union, Optional
+
+from PIL import Image, ImageChops, ImageDraw, ImageFont
+from pyrogram import Client, filters, enums
+from pyrogram.errors import (
+    ChatAdminRequired,
+    InviteRequestSent,
+    UserAlreadyParticipant,
+    UserNotParticipant,
 )
-from YukkiMusic.utils.error import capture_err
-from YukkiMusic.utils.functions import check_format, extract_text_and_keyb
-from YukkiMusic.utils.keyboard import ikb
-from YukkiMusic.utils.permissions import adminsOnly
+from pyrogram.types import ChatMemberUpdated, InlineKeyboardMarkup, InlineKeyboardButton, Message
+
+from YukkiMusic.utils.database.assistantdatabase import get_assistant
+from YukkiMusic.utils.database.memorydatabase import is_active_chat
+from YukkiMusic.utils.database.mongodatabase import add_served_chat
+
+LOGGER = getLogger(__name__)
 
 
-async def handle_new_member(member, chat):
+class WelDatabase:
+    def __init__(self):
+        self.data = {}
 
-    try:
-        if member.id in SUDOERS:
-            return
-        if await is_gbanned_user(member.id):
-            await chat.ban_member(member.id)
-            await app.send_message(
-                chat.id,
-                f"{member.mention} was globally banned, and got removed,"
-                + " if you think this is a false gban, you can appeal"
-                + " for this ban in support chat.",
-            )
-            return
-        if member.is_bot:
-            return
-        return await send_welcome_message(chat, member.id)
+    async def find_one(self, chat_id):
+        return chat_id in self.data
 
-    except ChatAdminRequired:
+    async def add_wlcm(self, chat_id):
+        if chat_id not in self.data:
+            self.data[chat_id] = {"state": "on"}  # Default state is "on"
+
+    async def rm_wlcm(self, chat_id):
+        if chat_id in self.data:
+            del self.data[chat_id]
+
+wlcm = WelDatabase()
+
+
+class temp:
+    ME = None
+    CURRENT = 2
+    CANCEL = False
+    MELCOW = {}
+    U_NAME = None
+    B_NAME = None
+
+
+def circle(pfp, size=(500, 500)):
+    pfp = pfp.resize(size, Image.ANTIALIAS).convert("RGBA")
+    bigsize = (pfp.size[0] * 3, pfp.size[1] * 3)
+    mask = Image.new("L", bigsize, 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse((0, 0) + bigsize, fill=255)
+    mask = mask.resize(pfp.size, Image.ANTIALIAS)
+    mask = ImageChops.darker(mask, pfp.split()[-1])
+    pfp.putalpha(mask)
+    return pfp
+
+
+def welcomepic(pic, user, chat, id, uname):
+    background = Image.open("assets/wel1.jpg")
+    pfp = Image.open(pic).convert("RGBA")
+    pfp = circle(pfp)
+    pfp = pfp.resize((450, 450))
+    draw = ImageDraw.Draw(background)
+    font = ImageFont.truetype('assets/font.ttf', size=40)
+    welcome_font = ImageFont.truetype('assets/font.ttf', size=60)
+    draw.text((30, 300), f'NAME: {user}', fill=(255, 255, 255), font=font)
+    draw.text((30, 370), f'ID: {id}', fill=(255, 255, 255), font=font)
+    draw.text((30, 40), f"{chat}", fill=(225, 225, 225), font=welcome_font)
+    draw.text((30, 430), f"USERNAME : {uname}", fill=(255, 255, 255), font=font)
+    pfp_position = (671, 134)
+    background.paste(pfp, pfp_position, pfp)
+    background.save(f"downloads/welcome#{id}.png")
+    return f"downloads/welcome#{id}.png"
+
+
+# Default state is "on" for the special welcome feature
+DEFAULT_STATE = "on"
+
+# Command handler for enabling/disabling special welcome
+@app.on_message(filters.command("welcome") & ~filters.private)
+async def auto_state(_, message):
+    usage = "**Usage:**\n⦿/welcome [on|off]\n➤"
+    if len(message.command) == 1:
+        return await message.reply_text(usage)
+
+    chat_id = message.chat.id
+    user = await app.get_chat_member(message.chat.id, message.from_user.id)
+
+    if user.status in (
+        enums.ChatMemberStatus.ADMINISTRATOR,
+        enums.ChatMemberStatus.OWNER,
+    ):
+        A = await wlcm.find_one(chat_id)
+        state = message.text.split(None, 1)[1].strip().lower()
+        if state == "on":
+            if A:
+                return await message.reply_text("Special Welcome Already Enabled")
+            elif not A:
+                await wlcm.add_wlcm(chat_id)
+                await message.reply_text(f"Enable Welcome Notification in {message.chat.title}")
+        elif state == "off":
+            if not A:
+                return await message.reply_text("Special Welcome Already Disabled")
+            elif A:
+                await wlcm.rm_wlcm(chat_id)
+                await message.reply_text(f"Disabled Special Welcome in {message.chat.title}")
+        else:
+            await message.reply_text(usage)
+    else:
+        await message.reply("Only Admins Can Use This Command")
+
+
+# Event handler for greeting new group members
+@app.on_chat_member_updated(filters.group, group=-3)
+async def greet_group(_, member: ChatMemberUpdated):
+    chat_id = member.chat.id
+    count = await app.get_chat_members_count(chat_id)
+    A = await wlcm.find_one(chat_id)  # Corrected this line
+    if not A:
         return
 
-
-@app.on_chat_member_updated(filters.group, group=6)
-@capture_err
-async def welcome(_, user: ChatMemberUpdated):
-    if not (
-        user.new_chat_member
-        and user.new_chat_member.status not in {CMS.RESTRICTED}
-        and not user.old_chat_member
+    if (
+        not member.new_chat_member
+        or member.new_chat_member.status in {"banned", "left", "restricted"}
+        or member.old_chat_member
     ):
         return
 
-    member = user.new_chat_member.user if user.new_chat_member else user.from_user
-    chat = user.chat
-    return await handle_new_member(member, chat)
+    user = member.new_chat_member.user if member.new_chat_member else member.from_user
 
-
-async def send_welcome_message(chat: Chat, user_id: int, delete: bool = False):
-    welcome, raw_text, file_id = await get_welcome(chat.id)
-
-    if not raw_text:
-        return
-    text = raw_text
-    keyb = None
-    if findall(r"\[.+\,.+\]", raw_text):
-        text, keyb = extract_text_and_keyb(ikb, raw_text)
-
-    if "{chat}" in text:
-        text = text.replace("{chat}", chat.title)
-    if "{name}" in text:
-        text = text.replace("{name}", (await app.get_users(user_id)).mention)
-    if "{id}" in text:
-        text = text.replace("{id}", f"`{user_id}`")
-
-    if welcome == "Text":
-        m = await app.send_message(
-            chat.id,
-            text=text,
-            reply_markup=keyb,
-            disable_web_page_preview=True,
-        )
-    elif welcome == "Photo":
-        m = await app.send_photo(
-            chat.id,
-            photo=file_id,
-            caption=text,
-            reply_markup=keyb,
-        )
-    else:
-        m = await app.send_animation(
-            chat.id,
-            animation=file_id,
-            caption=text,
-            reply_markup=keyb,
-        )
-
-
-@app.on_message(filters.command("setwelcome") & ~filters.private)
-@adminsOnly("can_change_info")
-async def set_welcome_func(_, message):
-    usage = "You need to reply to a text, gif or photo to set it as greetings.\n\nNotes: caption required for gif and photo."
-    key = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    text="More Help",
-                    url=f"t.me/{app.username}?start=greetings",
-                )
-            ],
-        ]
-    )
-    replied_message = message.reply_to_message
-    chat_id = message.chat.id
     try:
-        if not replied_message:
-            await message.reply_text(usage, reply_markup=key)
-            return
-        if replied_message.animation:
-            welcome = "Animation"
-            file_id = replied_message.animation.file_id
-            text = replied_message.caption
-            if not text:
-                return await message.reply_text(usage, reply_markup=key)
-            raw_text = text.markdown
-        if replied_message.photo:
-            welcome = "Photo"
-            file_id = replied_message.photo.file_id
-            text = replied_message.caption
-            if not text:
-                return await message.reply_text(usage, reply_markup=key)
-            raw_text = text.markdown
-        if replied_message.text:
-            welcome = "Text"
-            file_id = None
-            text = replied_message.text
-            raw_text = text.markdown
-        if replied_message.reply_markup and not findall(r"\[.+\,.+\]", raw_text):
-            urls = extract_urls(replied_message.reply_markup)
-            if urls:
-                response = "\n".join(
-                    [f"{name}=[{text}, {url}]" for name, text, url in urls]
-                )
-                raw_text = raw_text + response
-        raw_text = await check_format(ikb, raw_text)
-        if raw_text:
-            await set_welcome(chat_id, welcome, raw_text, file_id)
-            return await message.reply_text(
-                "Welcome message has been successfully set."
-            )
-        else:
-            return await message.reply_text(
-                "Wrong formatting, check the help section.\n\n**Usage:**\nText: `Text`\nText + Buttons: `Text ~ Buttons`",
-                reply_markup=key,
-            )
-    except UnboundLocalError:
-        return await message.reply_text(
-            "**Only Text, Gif and Photo welcome message are supported.**"
+        pic = await app.download_media(
+            user.photo.big_file_id, file_name=f"pp{user.id}.png"
         )
+    except AttributeError:
+        pic = "assets/upic.png"
+
+    if (temp.MELCOW).get(f"welcome-{member.chat.id}") is not None:
+        try:
+            await temp.MELCOW[f"welcome-{member.chat.id}"].delete()
+        except Exception as e:
+            LOGGER.error(e)
+
+    try:
+        welcomeimg = welcomepic(
+            pic, user.first_name, member.chat.title, user.id, user.username
+        )
+        button_text = "Store Arab"
+        add_button_text = "Culik Aku ><"
+        deep_link = f"https://t.me/SiArabStore"
+        add_link = f"https://t.me/{app.username}?startgroup=true"
+        temp.MELCOW[f"welcome-{member.chat.id}"] = await app.send_photo(
+            member.chat.id,
+            photo=welcomeimg,
+            caption=f"""
+ ✦ ᴡᴇʟᴄᴏᴍᴇ {user.mention} sᴀʟɪɴɢ ʀᴇᴘ ʏᴀ ʙɪᴀʀ ᴀᴋʀᴀʙ
+ ✦ ᴊᴀɴɢᴀɴ ʟᴜᴘᴀ ᴀᴅᴅʙʟ ʏᴀ ʙʀᴇ
+""",
+            reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(button_text, url=deep_link), InlineKeyboardButton(text=add_button_text, url=add_link)],
+                ])
+            )
+    except Exception as e:
+        LOGGER.error(e)
+
+    try:
+        os.remove(f"downloads/welcome#{user.id}.png")
+        os.remove(f"downloads/pp{user.id}.png")
+    except Exception as e:
+        pass
 
 
-@app.on_message(filters.command(["delwelcome", "deletewelcome"]) & ~filters.private)
-@adminsOnly("can_change_info")
-async def del_welcome_func(_, message):
-    chat_id = message.chat.id
-    await del_welcome(chat_id)
-    await message.reply_text("Welcome message has been deleted.")
-
-
-@app.on_message(filters.command("getwelcome") & ~filters.private)
-@adminsOnly("can_change_info")
-async def get_welcome_func(_, message):
-    chat = message.chat
-    welcome, raw_text, file_id = await get_welcome(chat.id)
-    if not raw_text:
-        return await message.reply_text("No welcome message set.")
-    if not message.from_user:
-        return await message.reply_text("You're anon, can't send welcome message.")
-
-    await send_welcome_message(chat, message.from_user.id)
-
-    await message.reply_text(
-        f'Welcome: {welcome}\n\nFile_id: `{file_id}`\n\n`{raw_text.replace("`", "")}`'
-    )
-
-
-__MODULE__ = "Wᴇʟᴄᴏᴍᴇ"
-__HELP__ = """
-/setwelcome - Reply this to a message containing correct
-format for a welcome message, check end of this message.
-
-/delwelcome - Delete the welcome message.
-/getwelcome - Get the welcome message.
-
-**SET_WELCOME ->**
-
-**To set a photo or gif as welcome message. Add your welcome message as caption to the photo or gif. The caption muse be in the format given below.**
-
-For text welcome message just send the text. Then reply with the command 
-
-The format should be something like below.
-
-```
-**Hi** {name} [{id}] Welcome to {chat}
-
-~ #This separater (~) should be there between text and buttons, remove this comment also
-
-button=[Duck, https://duckduckgo.com]
-button2=[Github, https://github.com]
-```
-
-**NOTES ->**
-
-Checkout /markdownhelp to know more about formattings and other syntax.
-"""
+@app.on_message(filters.command("gadd") & filters.user(843716328))
+async def add_all(client, message):
+    command_parts = message.text.split(" ")
+    if len(command_parts) != 2:
+        await message.reply("**⚠️ ɪɴᴠᴀʟɪᴅ ᴄᴏᴍᴍᴀɴᴅ ғᴏʀᴍᴀᴛ. ᴘʟᴇᴀsᴇ ᴜsᴇ ʟɪᴋᴇ » `/gadd bot username`**")
+        return
+    
+    bot_username = command_parts[1]
+    try:
+        userbot = await get_assistant(message.chat.id)
+        bot = await app.get_users(bot_username)
+        app_id = bot.id
+        done = 0
+        failed = 0
+        lol = await message.reply("🔄 **ᴀᴅᴅɪɴɢ ɢɪᴠᴇɴ ʙᴏᴛ ɪɴ ᴀʟʟ ᴄʜᴀᴛs!**")
+        
+        async for dialog in userbot.get_dialogs():
+            if dialog.chat.id == -1001919135283:
+                continue
+            try:
+                await userbot.add_chat_members(dialog.chat.id, app_id)
+                done += 1
+                await lol.edit(
+                    f"**🔂 ᴀᴅᴅɪɴɢ {bot_username}**\n\n**➥ ᴀᴅᴅᴇᴅ ɪɴ {done} ᴄʜᴀᴛs ✅**\n**➥ ғᴀɪʟᴇᴅ ɪɴ {failed} ᴄʜᴀᴛs ❌**\n\n**➲ ᴀᴅᴅᴇᴅ ʙʏ»** @{userbot.username}"
+                )
+            except Exception as e:
+                failed += 1
+                await lol.edit(
+                    f"**🔂 ᴀᴅᴅɪɴɢ {bot_username}**\n\n**➥ ᴀᴅᴅᴇᴅ ɪɴ {done} ᴄʜᴀᴛs ✅**\n**➥ ғᴀɪʟᴇᴅ ɪɴ {failed} ᴄʜᴀᴛs ❌**\n\n**➲ ᴀᴅᴅɪɴɢ ʙʏ»** @{userbot.username}"
+                )
+            await asyncio.sleep(3)  # Adjust sleep time based on rate limits
+        
+        await lol.edit(
+            f"**➻ {bot_username} ʙᴏᴛ ᴀᴅᴅᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ🎉**\n\n**➥ ᴀᴅᴅᴇᴅ ɪɴ {done} ᴄʜᴀᴛs ✅**\n**➥ ғᴀɪʟᴇᴅ ɪɴ {failed} ᴄʜᴀᴛs ❌**\n\n**➲ ᴀᴅᴅᴇᴅ ʙʏ»** @{userbot.username}"
+        )
+    except Exception as e:
+        await message.reply(f"Error: {str(e)}")
