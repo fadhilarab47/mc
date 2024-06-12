@@ -5,9 +5,8 @@ from TheApi import api
 
 from YukkiMusic import app
 
-
 @app.on_message(
-    filters.command(["chatgpt", "ai", "ask"], prefixes=["+", ".", "/", "-", "?", "$", "#", "&"] ~filters.private)
+    filters.command(["chatgpt", "ai", "ask"], prefixes=["+", ".", "/", "-", "?", "$", "#", "&"]) & ~filters.private
 )
 async def chatgpt_chat(bot, message):
     if len(message.command) < 2 and not message.reply_to_message:
@@ -32,7 +31,6 @@ async def chatgpt_chat(bot, message):
             await message.reply_text(results["results"])
     except requests.exceptions.RequestException as e:
         await message.reply_text("There was an error processing your request. Please try again later.")
-
 
 __MODULE__ = "ChatGPT"
 __HELP__ = """
