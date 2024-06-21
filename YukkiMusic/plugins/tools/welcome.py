@@ -113,32 +113,57 @@ async def auto_state(_, message):
     else:
         await message.reply("Only Admins Can Use This Command")
 
+@app.on_message(filters.command("welcome") & ~filters.private)
+async def auto_state(_, message):
+    usage = "**Usage:**\n⦿/welcome [on|off]\n➤"
+    if len(message.command) == 1:
+        return await message.reply_text(usage)
+    chat_id = message.chat.id
+    user = await app.get_chat_member(message.chat.id, message.from_user.id)
+    if user.status in (
+        enums.ChatMemberStatus.ADMINISTRATOR,
+        enums.ChatMemberStatus.OWNER,
+    ):
+        A = await wlcm.find_one(chat_id)
+        state = message.text.split(None, 1)[1].strip().lower()
+        if state == "on":
+            if A:
+                return await message.reply_text("Special Welcome Already Enabled")
+            elif not A:
+                await wlcm.add_wlcm(chat_id)
+                await message.reply_text(f"Enabled Special Welcome in {message.chat.title}")
+        elif state == "off":
+            if not A:
+                return await message.reply_text("Special Welcome Already Disabled")
+            elif A:
+                await wlcm.rm_wlcm(chat_id)
+                await message.reply_text(f"Disabled Special Welcome in {message.chat.title}")
+        else:
+            await message.reply_text(usage)
+    else:
+        await message.reply("Only Admins Can Use This Command")
 
-# Event handler for greeting new group members
+# ... (copy paster teri maa ki chut  )
+
 @app.on_chat_member_updated(filters.group, group=-3)
 async def greet_group(_, member: ChatMemberUpdated):
     chat_id = member.chat.id
-    count = await app.get_chat_members_count(chat_id)
     A = await wlcm.find_one(chat_id)  # Corrected this line
     if not A:
         return
-
     if (
         not member.new_chat_member
         or member.new_chat_member.status in {"banned", "left", "restricted"}
         or member.old_chat_member
     ):
         return
-
     user = member.new_chat_member.user if member.new_chat_member else member.from_user
-
     try:
         pic = await app.download_media(
             user.photo.big_file_id, file_name=f"pp{user.id}.png"
         )
     except AttributeError:
-        pic = "assets/upic.png"
-
+        pic = "assets/bg2.jpg"
     if (temp.MELCOW).get(f"welcome-{member.chat.id}") is not None:
         try:
             await temp.MELCOW[f"welcome-{member.chat.id}"].delete()
