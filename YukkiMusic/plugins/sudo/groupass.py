@@ -1,12 +1,24 @@
+#
+# Copyright (C) 2024 by TheTeamVivek@Github, < https://github.com/TheTeamVivek >.
+#
+# This file is part of < https://github.com/TheTeamVivek/YukkiMusic > project,
+# and is released under the MIT License.
+# Please see < https://github.com/TheTeamVivek/YukkiMusic/blob/master/LICENSE >
+#
+# All rights reserved.
+#
 from pyrogram import filters
 from pyrogram.types import Message
 
-from config import PK
 from YukkiMusic import app
 from YukkiMusic.core.userbot import assistants
-from YukkiMusic.utils.assistant import assistant, get_assistant_details
+from YukkiMusic.utils.assistant import (
+    is_avl_assistant as assistant,
+    get_assistant_details,
+)
 from YukkiMusic.utils.database import get_assistant, save_assistant, set_assistant
 from YukkiMusic.utils.filter import admin_filter
+from config import LOG_GROUP_ID
 
 
 @app.on_message(filters.command("changeassistant") & admin_filter)
@@ -21,36 +33,32 @@ async def assis_change(_, message: Message):
         return await message.reply_text(usage)
     a = await get_assistant(message.chat.id)
     DETAILS = f"ʏᴏᴜʀ ᴄʜᴀᴛ's ᴀssɪsᴛᴀɴᴛ ʜᴀs ʙᴇᴇɴ ᴄʜᴀɴɢᴇᴅ ғʀᴏᴍ [{a.name}](https://t.me/{a.username}) "
-    try:
-        await a.leave_chat(message.chat.id)
-    except:
-        pass
+    if not message.chat.id == LOG_GROUP_ID:
+        try:
+            await a.leave_chat(message.chat.id)
+        except:
+            pass
     b = await set_assistant(message.chat.id)
     DETAILS += f"ᴛᴏ [{b.name}](https://t.me/{b.username})"
     try:
         await b.join_chat(message.chat.id)
     except:
         pass
-    await message.reply_text(DETAILS, disable_web_page_preview=True, protect_content=PK)
+    await message.reply_text(DETAILS, disable_web_page_preview=True)
 
 
 @app.on_message(filters.command("setassistant") & admin_filter)
 async def assis_set(_, message: Message):
-    avt = await assistant()
-    if avt == True:
+    if await assistant():
         return await message.reply_text(
             "sᴏʀʀʏ sɪʀ! ɪɴ ʙᴏᴛ sᴇʀᴠᴇʀ ᴏɴʟʏ ᴏɴᴇ ᴀssɪsᴛᴀɴᴛ ᴀᴠᴀɪʟᴀʙʟᴇ ᴛʜᴇʀᴇғᴏʀᴇ ʏᴏᴜ ᴄᴀɴ'ᴛ ᴄʜᴀɴɢᴇ ᴀssɪsᴛᴀɴᴛ"
         )
     usage = await get_assistant_details()
     if len(message.command) != 2:
-        return await message.reply_text(
-            usage, disable_web_page_preview=True, protect_content=PK
-        )
+        return await message.reply_text(usage, disable_web_page_preview=True)
     query = message.text.split(None, 1)[1].strip()
     if query not in assistants:
-        return await message.reply_text(
-            usage, disable_web_page_preview=True, protect_content=PK
-        )
+        return await message.reply_text(usage, disable_web_page_preview=True)
     a = await get_assistant(message.chat.id)
     try:
         await a.leave_chat(message.chat.id)
@@ -62,29 +70,16 @@ async def assis_set(_, message: Message):
         await b.join_chat(message.chat.id)
     except:
         pass
-    DETAILS = f""" ʏᴏᴜʀ ᴄʜᴀᴛ's  ɴᴇᴡ ᴀssɪsᴛᴀɴᴛ ᴅᴇᴛᴀɪʟs:
-                   ᴀssɪsᴛᴀɴᴛ ɴᴀᴍᴇ :- {a.name}
-                   ᴀssɪsᴛᴀɴᴛ ᴜsᴇʀɴᴀᴍᴇ :- {a.username}
-                   ᴀssɪsᴛᴀɴᴛ ɪᴅ:- @{a.id}"""
-    await message.reply_text(DETAILS, disable_web_page_preview=True, protect_content=PK)
+    await message.reply_text(
+        "**Yᴏᴜʀ ᴄʜᴀᴛ's ɴᴇᴡ ᴀssɪsᴛᴀɴᴛ ᴅᴇᴛᴀɪʟs:**\nAssɪsᴛᴀɴᴛ Nᴀᴍᴇ :- {b.name}\nUsᴇʀɴᴀᴍᴇ :- @{b.username}\nID:- {b.id}",
+        disable_web_page_preview=True,
+    )
 
 
 @app.on_message(filters.command("checkassistant") & filters.group & admin_filter)
 async def check_ass(_, message: Message):
-    assistant = await get_assistant(message.chat.id)
-    DETAILS = f"""Your chat's assistant details:
-Assistant Name :- {assistant.name}
-Assistant Username :- {assistant.username}
-Assistant ID:- @{assistant.id}"""
-    await message.reply_text(DETAILS, disable_web_page_preview=True, protect_content=PK)
-
-
-__MODULE__ = "Gᴀssɪsᴛᴀɴᴛ"
-__HELP__ = """<u> ɢʀᴏᴜᴘ ᴀssɪsᴛᴀɴᴛ's ᴄᴏᴍᴍᴀɴᴅ:</u>
-
-/checkassistant - ᴄʜᴇᴄᴋ ᴅᴇᴛᴀɪʟs ᴏғ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀssɪsᴛᴀɴᴛ
-
-/setassistant - ᴄʜᴀɴɢᴇ ᴀssɪsᴛᴀɴᴛ ᴛᴏ sᴘᴇᴄɪғɪᴄ ᴀssɪsᴛᴀɴᴛ ғᴏʀ ʏᴏᴜʀ ɢʀᴏᴜᴘ
-
-/changeassistant - ᴄʜᴀɴɢᴇ ʏᴏᴜʀ ɢʀᴏᴜᴘ ᴀssɪsᴛᴀɴᴛ ᴛᴏ ʀᴀɴᴅᴏᴍ ᴀᴠᴀɪʟᴀʙʟᴇ ᴀssɪsᴛᴀɴᴛ ɪɴ ʙᴏᴛ sᴇʀᴠᴇʀ's
-"""
+    a = await get_assistant(message.chat.id)
+    await message.reply_text(
+        "**Yᴏᴜʀ ᴄʜᴀᴛ's ᴀssɪsᴛᴀɴᴛ ᴅᴇᴛᴀɪʟs:**\nAssɪsᴛᴀɴᴛ Nᴀᴍᴇ :- {a.name}\nAssɪsᴛᴀɴᴛ\nUsᴇʀɴᴀᴍᴇ :- @{a.username}\nAssɪsᴛᴀɴᴛ ID:- {a.id}",
+        disable_web_page_preview=True,
+    )
