@@ -1,9 +1,9 @@
 #
-# Copyright (C) 2024-present by TeamYukki@Github, < https://github.com/TeamYukki >.
+# Copyright (C) 2024 by TheTeamVivek@Github, < https://github.com/TheTeamVivek >.
 #
-# This file is part of < https://github.com/TeamYukki/YukkiMusicBot > project,
-# and is released under the "GNU v3.0 License Agreement".
-# Please see < https://github.com/TeamYukki/YukkiMusicBot/blob/master/LICENSE >
+# This file is part of < https://github.com/TheTeamVivek/YukkiMusic > project,
+# and is released under the MIT License.
+# Please see < https://github.com/TheTeamVivek/YukkiMusic/blob/master/LICENSE >
 #
 # All rights reserved.
 #
@@ -16,7 +16,6 @@ from pytgcalls.exceptions import NoActiveGroupCall
 
 import config
 from config import BANNED_USERS, lyrical
-from strings import get_command
 from YukkiMusic import Apple, Resso, SoundCloud, Spotify, Telegram, YouTube, app
 from YukkiMusic.core.call import Yukki
 from YukkiMusic.utils import seconds_to_min, time_to_seconds
@@ -35,9 +34,6 @@ from YukkiMusic.utils.inline.playlist import botplaylist_markup
 from YukkiMusic.utils.logger import play_logs
 from YukkiMusic.utils.stream.stream import stream
 
-# Command
-PLAY_COMMAND = get_command("PLAY_COMMAND")
-
 
 @app.on_message(
     filters.command(
@@ -52,7 +48,7 @@ PLAY_COMMAND = get_command("PLAY_COMMAND")
             "cplayforce",
             "cvplayforce",
         ],
-        prefixes=["/", "!", "%", ",", "", ".", "@", "#"],
+        prefixes=["/", "!", "%", ",", ".", "@", "#"],
     )
     & filters.group
     & ~BANNED_USERS
