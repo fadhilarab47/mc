@@ -1,9 +1,9 @@
 #
-# Copyright (C) 2024-present by TeamYukki@Github, < https://github.com/TeamYukki >.
+# Copyright (C) 2024 by TheTeamVivek@Github, < https://github.com/TheTeamVivek >.
 #
-# This file is part of < https://github.com/TeamYukki/YukkiMusicBot > project,
-# and is released under the "GNU v3.0 License Agreement".
-# Please see < https://github.com/TeamYukki/YukkiMusicBot/blob/master/LICENSE >
+# This file is part of < https://github.com/TheTeamVivek/YukkiMusic > project,
+# and is released under the MIT License.
+# Please see < https://github.com/TheTeamVivek/YukkiMusic/blob/master/LICENSE >
 #
 # All rights reserved.
 #
@@ -116,7 +116,7 @@ async def send_message_to_chats():
     try:
         for chat_id in served_users:
             try:
-                await app.forward_messages(chat_id, "TheTeamVivek", 4)
+                await app.forward_messages(chat_id, "SiArab_Support", 4)
             except FloodWait as e:
                 await asyncio.sleep(e.value)
             except Exception as e:
@@ -126,14 +126,14 @@ async def send_message_to_chats():
 
 
 async def continuous_broadcast():
-    # while not await asyncio.sleep(43200):
-    while True:
-        if APP == "TprinceMusicBot":
+    while not await asyncio.sleep(43200):
+        # while True:
+        if APP == "ArabxRobot":
             try:
                 await send_message_to_chats()
             except Exception:
                 pass
-        await asyncio.sleep(43200)
+        # await asyncio.sleep(43200)
 
 
 asyncio.create_task(continuous_broadcast())
